@@ -1,0 +1,116 @@
+syntax = "proto2";
+
+package HseMsg;
+
+message Message {
+	required string author = 1;
+	required string text = 2;
+	required int64 date = 3;
+}
+
+message User {
+	required string username = 1;
+}
+
+message Request {
+	required uint32 id = 1;
+
+	message SignUp {
+		required string username = 1;
+		required string password = 2;
+	}
+
+	message SignIn {
+		required string username = 1;
+		required string password = 2;
+	}
+
+	message GetUsers {}
+
+	message GetMessagesWithUser {
+		required string with = 1;
+	}
+
+	message SendMessageToUser {
+		required string receiver = 1;
+		required string text = 2;
+	}
+
+	oneof action {
+		SignUp sign_up = 2;
+		SignIn sign_in = 3;
+		GetUsers get_users = 4;
+		GetMessagesWithUser get_messages_with_user = 5;
+		SendMessageToUser send_message_to_user = 6;
+	}
+}
+
+message Result {
+	required uint32 id = 1;
+
+	message SignUpResult {
+		enum SignUpResultStatus {
+			SIGNED_UP = 1;
+			USERNAME_IS_TAKEN = 2;
+			VALIDATION_ERROR = 3;
+		}
+
+		required SignUpResultStatus status = 1;
+	}
+
+	message SignInResult {
+		enum SignInResultStatus {
+			SIGNED_IN = 1;
+			USER_NOT_FOUND = 2;
+		}
+
+		required SignInResultStatus status = 1;
+	}
+
+	message GetUsersResult {
+		repeated User users = 1;
+	}
+
+	message GetMessagesWithUserResult {
+		repeated Message messages = 1;
+	}
+
+	message SendMessageToUserResult {
+		enum SendMessageToUserResultStatus {
+			SENT = 1;
+			USER_NOT_FOUND = 2;
+			EMPTY_MESSAGE = 3;
+		}
+		required SendMessageToUserResultStatus status = 1;
+	}
+
+	oneof value {
+		SignUpResult sign_up = 2;
+		SignInResult sign_in = 3;
+		GetUsersResult get_users = 4;
+		GetMessagesWithUserResult get_messages_with_user = 5;
+		SendMessageToUserResult send_message_to_user = 6;
+	}
+}
+
+message ServerMessage {
+	message NewMessage {
+		required Message message = 1;
+	}
+
+	message NewUser {
+		required User user = 1;
+	}
+
+	message Event {
+		oneof event {
+			NewMessage new_message = 1;
+			NewUser new_user = 2;
+		}
+	}
+
+	oneof message {
+		Event event = 1;
+		Result result = 2;
+	}
+}
