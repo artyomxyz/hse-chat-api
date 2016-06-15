@@ -6,6 +6,7 @@ message Message {
 	required string author = 1;
 	required string text = 2;
 	required int64 date = 3;
+	required string receiver = 4;
 }
 
 message User {
@@ -93,7 +94,7 @@ message Result {
 	}
 }
 
-message ServerMessage {
+message Event {
 	message NewMessage {
 		required Message message = 1;
 	}
@@ -102,13 +103,13 @@ message ServerMessage {
 		required User user = 1;
 	}
 
-	message Event {
-		oneof event {
-			NewMessage new_message = 1;
-			NewUser new_user = 2;
-		}
+	oneof event {
+		NewMessage new_message = 1;
+		NewUser new_user = 2;
 	}
+}
 
+message ServerMessage {
 	oneof message {
 		Event event = 1;
 		Result result = 2;

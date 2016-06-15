@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"io"
-	"log"
 	"net"
 )
 
@@ -45,7 +44,6 @@ func (chConn *ChunkedConnection) Read() ([]byte, error) {
 }
 
 func (chConn *ChunkedConnection) Write(chunk []byte) error {
-	log.Print(chunk)
 	lenBuffer := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lenBuffer, uint32(len(chunk)))
 

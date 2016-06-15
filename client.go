@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hse-chat/hse-chat-api/HseMsg"
@@ -8,10 +9,12 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-type clientError struct{}
+type clientError struct {
+	reason string
+}
 
 func (clErr *clientError) Error() string {
-	return "Client error"
+	return fmt.Sprintf("Client error: %s", clErr.reason)
 }
 
 // Client object, represents conected client
@@ -28,7 +31,7 @@ func NewClient() Client {
 // SignUp perform sign up action
 func (cl *Client) SignUp(username string, password string) (*SignUpResult, error) {
 	if cl.signedIn {
-		return nil, &clientError{}
+		return nil, &clientError{"Signed in already"}
 	}
 
 	if len(username) < 4 || len(password) < 4 {
@@ -54,7 +57,7 @@ func (cl *Client) SignUp(username string, password string) (*SignUpResult, error
 // SignIn perform sign in action
 func (cl *Client) SignIn(username string, password string) (*SignInResult, error) {
 	if cl.signedIn {
-		return nil, &clientError{}
+		return nil, &clientError{"Signed in already"}
 	}
 
 	var user struct {
@@ -82,7 +85,7 @@ func (cl *Client) SignIn(username string, password string) (*SignInResult, error
 // GetUsers get users
 func (cl *Client) GetUsers() (*GetUsersResult, error) {
 	if !cl.signedIn {
-		return nil, &clientError{}
+		return nil, &clientError{"Not signed in"}
 	}
 
 	var users []struct {
@@ -103,7 +106,7 @@ func (cl *Client) GetUsers() (*GetUsersResult, error) {
 // GetMessagesWithUser gets messages with users
 func (cl *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, error) {
 	if !cl.signedIn {
-		return nil, &clientError{}
+		return nil, &clientError{"Not signed in"}
 	}
 
 	var messages []struct {
@@ -139,7 +142,7 @@ func (cl *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, 
 // SendMessageToUser send message to user
 func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageToUserResult, error) {
 	if !cl.signedIn {
-		return nil, &clientError{}
+		return nil, &clientError{"Not signed in"}
 	}
 
 	if len(text) == 0 {
@@ -161,11 +164,20 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 		return nil, err
 	}
 
+	date := time.Now().Unix()
+
+	go msgEmitter.Emit(Message{
+		author:   cl.username,
+		text:     text,
+		receiver: receiver,
+		date:     date,
+	})
+
 	err = db.C("messages").Insert(bson.M{
 		"author":   cl.username,
 		"text":     text,
 		"receiver": receiver,
-		"date":     time.Now().Unix(),
+		"date":     date,
 	})
 
 	if err != nil {
