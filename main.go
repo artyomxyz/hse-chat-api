@@ -7,10 +7,10 @@ import (
 )
 
 var db *mgo.Database
-var msgEmitter *MessageEmitter
+var msgMngr *MessageManager
 
 func main() {
-	msgEmitter = NewMessagEmitter()
+	msgMngr = NewMessageManager()
 
 	session, err := mgo.Dial("mongodb://localhost")
 	if err != nil {

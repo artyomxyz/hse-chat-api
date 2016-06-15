@@ -1,6 +1,10 @@
 package main
 
-import "github.com/hse-chat/hse-chat-api/HseMsg"
+import (
+	"log"
+
+	"github.com/hse-chat/hse-chat-api/HseMsg"
+)
 
 // ClientConnection represents client connection
 type ClientConnection struct {
@@ -28,27 +32,12 @@ func (clConn ClientConnection) process() {
 }
 
 func (clConn ClientConnection) handleNewMessage(msg Message) error {
-	serverMessage := &HseMsg.ServerMessage{
-		Message: &HseMsg.ServerMessage_Event{
-			Event: &HseMsg.Event{
-				Event: &HseMsg.Event_NewMessage_{
-					NewMessage: &HseMsg.Event_NewMessage{
-						Message: &HseMsg.Message{
-							Author:   &msg.author,
-							Receiver: &msg.receiver,
-							Date:     &msg.date,
-							Text:     &msg.text,
-						},
-					},
-				},
-			},
-		},
+	if clConn.client.CanReadMessage(msg) {
+		err := clConn.conn.Write(msg.ToServerMessage())
+		if err != nil {
+			return err
+		}
 	}
-	err := clConn.conn.Write(serverMessage)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -71,6 +60,8 @@ func (clConn ClientConnection) receiveRequests() {
 
 func (clConn ClientConnection) handleRequest(req *HseMsg.Request) error {
 	var err error
+	log.Printf("Received %s", req)
+
 	var res Result
 
 	if signUp := req.GetSignUp(); signUp != nil {
@@ -103,6 +94,8 @@ func (clConn ClientConnection) handleRequest(req *HseMsg.Request) error {
 		if err != nil {
 			return err
 		}
+
+		log.Printf("Sent %s", serverMessage)
 	}
 
 	return nil
@@ -118,7 +111,7 @@ func NewClientConnection(conn ProtoConnection) ClientConnection {
 		make(chan Message),
 	}
 
-	msgEmitter.AddListener(clConn.msgChan)
+	msgMngr.AddListener(clConn.msgChan)
 
 	go clConn.receiveRequests()
 	go clConn.process()

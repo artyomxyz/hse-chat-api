@@ -82,11 +82,7 @@ func (res GetUsersResult) ToServerMessage(id uint32) *HseMsg.ServerMessage {
 
 // GetMessagesWithUserResult result of getting messages with user
 type GetMessagesWithUserResult struct {
-	messages []struct {
-		Author string
-		Text   string
-		Date   int64
-	}
+	messages []Message
 }
 
 // ToServerMessage converts to server message
@@ -95,9 +91,10 @@ func (res GetMessagesWithUserResult) ToServerMessage(id uint32) *HseMsg.ServerMe
 
 	for i := range res.messages {
 		messages[i] = &HseMsg.Message{
-			Author: &res.messages[i].Author,
-			Text:   &res.messages[i].Text,
-			Date:   &res.messages[i].Date,
+			Author:   &res.messages[i].author,
+			Receiver: &res.messages[i].receiver,
+			Text:     &res.messages[i].text,
+			Date:     &res.messages[i].date,
 		}
 	}
 

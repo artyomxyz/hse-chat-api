@@ -109,28 +109,7 @@ func (cl *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, 
 		return nil, &clientError{"Not signed in"}
 	}
 
-	var messages []struct {
-		Author string
-		Text   string
-		Date   int64
-	}
-
-	err := db.C("messages").Find(nil).Select(bson.M{
-		"$or": []interface{}{
-			bson.M{
-				"author":   cl.username,
-				"receiver": peer,
-			},
-			bson.M{
-				"author":   peer,
-				"receiver": cl.username,
-			},
-		},
-	}).Select(bson.M{
-		"author": 1,
-		"text":   1,
-		"date":   1,
-	}).All(&messages)
+	messages, err := msgMngr.GetMessagesBetweenTwoUsers(cl.username, peer)
 
 	if err != nil {
 		return nil, err
@@ -166,18 +145,11 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 
 	date := time.Now().Unix()
 
-	go msgEmitter.Emit(Message{
+	err = msgMngr.AddMessage(Message{
 		author:   cl.username,
 		text:     text,
 		receiver: receiver,
 		date:     date,
-	})
-
-	err = db.C("messages").Insert(bson.M{
-		"author":   cl.username,
-		"text":     text,
-		"receiver": receiver,
-		"date":     date,
 	})
 
 	if err != nil {
@@ -185,4 +157,9 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 	}
 
 	return &SendMessageToUserResult{HseMsg.Result_SendMessageToUserResult_SENT}, nil
+}
+
+// CanReadMessage return if client can read this message
+func (cl *Client) CanReadMessage(msg Message) bool {
+	return cl.signedIn && (cl.username == msg.author || cl.username == msg.receiver)
 }
