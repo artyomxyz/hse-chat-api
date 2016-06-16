@@ -25,6 +25,15 @@ func (usrMngr *UserManager) IncUserSessionsCount(username string) {
 
 	usrMngr.usersSessionsCount[username] = sessionsCount + 1
 
+	if sessionsCount == 0 {
+		go evtMngr.Emit(UpdateUserEvent{
+			user: User{
+				Username: username,
+				Online:   true,
+			},
+		})
+	}
+
 	usrMngr.mx.Unlock()
 }
 
@@ -38,7 +47,17 @@ func (usrMngr *UserManager) DecUserSessionsCount(username string) {
 		sessionsCount = 1
 	}
 
+	if sessionsCount == 1 {
+		go evtMngr.Emit(UpdateUserEvent{
+			user: User{
+				Username: username,
+				Online:   true,
+			},
+		})
+	}
+
 	usrMngr.usersSessionsCount[username] = sessionsCount - 1
+	delete(usrMngr.usersSessionsCount, username)
 
 	usrMngr.mx.Unlock()
 }
