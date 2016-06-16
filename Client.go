@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/hse-chat/hse-chat-api/HseMsg"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
 
 type clientError struct {
@@ -87,13 +85,7 @@ func (cl *Client) GetUsers() (*GetUsersResult, error) {
 		return nil, &clientError{"Not signed in"}
 	}
 
-	var users []struct {
-		Username string
-	}
-
-	err := db.C("users").Find(nil).Select(bson.M{
-		"username": 1,
-	}).All(&users)
+	users, err := usrMngr.GetUsers()
 
 	if err != nil {
 		return nil, err
@@ -127,19 +119,14 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 		return &SendMessageToUserResult{HseMsg.Result_SendMessageToUserResult_EMPTY_MESSAGE}, nil
 	}
 
-	var user struct {
-		Username string
-	}
-	err := db.C("users").Find(bson.M{
-		"username": receiver,
-	}).One(&user)
-
-	if err == mgo.ErrNotFound {
-		return &SendMessageToUserResult{HseMsg.Result_SendMessageToUserResult_USER_NOT_FOUND}, nil
-	}
+	exists, err := usrMngr.Exists(receiver)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if !exists {
+		return &SendMessageToUserResult{HseMsg.Result_SendMessageToUserResult_USER_NOT_FOUND}, nil
 	}
 
 	date := time.Now().Unix()

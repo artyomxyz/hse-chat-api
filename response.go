@@ -51,9 +51,7 @@ func (res SignInResult) ToServerMessage(id uint32) *HseMsg.ServerMessage {
 
 // GetUsersResult result getting users
 type GetUsersResult struct {
-	users []struct {
-		Username string
-	}
+	users []User
 }
 
 // ToServerMessage converts to server message

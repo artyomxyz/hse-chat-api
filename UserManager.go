@@ -30,6 +30,7 @@ func (usrMngr *UserManager) AddUser(usr User) error {
 		return err
 	}
 
+	// TODO: do it using goroutine and channels in event manager
 	go evtMngr.Emit(NewUserEvent{usr})
 
 	return nil
@@ -52,6 +53,35 @@ func (usrMngr *UserManager) FindByUsernameAndPassword(username string, password 
 	}
 
 	return &user, nil
+}
+
+// GetUsers return slice of users
+func (usrMngr *UserManager) GetUsers() ([]User, error) {
+	var users []User
+
+	err := db.C("users").Find(nil).Select(bson.M{
+		"username": 1,
+	}).All(&users)
+
+	return users, err
+}
+
+// Exists check if user with certain username exists
+func (usrMngr *UserManager) Exists(username string) (bool, error) {
+	var user User
+	err := db.C("users").Find(bson.M{
+		"username": username,
+	}).One(&user)
+
+	if err == mgo.ErrNotFound {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // NewUserManager creates new message managers
