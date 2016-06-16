@@ -62,7 +62,7 @@ func (cl *Client) SignUp(username string, password string) (*SignUpResult, error
 	cl.user = &User{Username: username}
 	cl.signedIn = true
 
-	usrMngr.IncUserSessionsCount(username)
+	go usrMngr.IncUserSessionsCount(username)
 
 	return &SignUpResult{HseMsg.Result_SignUpResult_SIGNED_UP}, nil
 }
@@ -86,7 +86,7 @@ func (cl *Client) SignIn(username string, password string) (*SignInResult, error
 	cl.user = user
 	cl.signedIn = true
 
-	usrMngr.IncUserSessionsCount(username)
+	go usrMngr.IncUserSessionsCount(username)
 
 	return &SignInResult{HseMsg.Result_SignInResult_SIGNED_IN}, nil
 }
