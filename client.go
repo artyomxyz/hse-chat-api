@@ -20,13 +20,13 @@ func (clErr *clientError) Error() string {
 
 // Client object, represents conected client
 type Client struct {
-	username string
+	user     *User
 	signedIn bool
 }
 
 // NewClient Creates new unauthorized client
 func NewClient() Client {
-	return Client{"", false}
+	return Client{nil, false}
 }
 
 // SignUp perform sign up action
@@ -52,7 +52,7 @@ func (cl *Client) SignUp(username string, password string) (*SignUpResult, error
 		return nil, err
 	}
 
-	cl.username = username
+	cl.user = &User{Username: username}
 	cl.signedIn = true
 
 	return &SignUpResult{HseMsg.Result_SignUpResult_SIGNED_UP}, nil
@@ -81,7 +81,7 @@ func (cl *Client) SignIn(username string, password string) (*SignInResult, error
 		return nil, err
 	}
 
-	cl.username = username
+	cl.user = &User{Username: username}
 	cl.signedIn = true
 	return &SignInResult{HseMsg.Result_SignInResult_SIGNED_IN}, nil
 }
@@ -113,7 +113,7 @@ func (cl *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, 
 		return nil, &clientError{"Not signed in"}
 	}
 
-	messages, err := msgMngr.GetMessagesBetweenTwoUsers(cl.username, peer)
+	messages, err := msgMngr.GetMessagesBetweenTwoUsers(cl.user.Username, peer)
 	log.Print(messages)
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 	date := time.Now().Unix()
 
 	err = msgMngr.AddMessage(Message{
-		Author:   cl.username,
+		Author:   cl.user.Username,
 		Text:     text,
 		Receiver: receiver,
 		Date:     date,
@@ -161,9 +161,4 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 	}
 
 	return &SendMessageToUserResult{HseMsg.Result_SendMessageToUserResult_SENT}, nil
-}
-
-// CanReadMessage return if client can read this message
-func (cl *Client) CanReadMessage(msg Message) bool {
-	return cl.signedIn && (cl.username == msg.Author || cl.username == msg.Receiver)
 }

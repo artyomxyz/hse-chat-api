@@ -7,7 +7,7 @@ type ClientConnection struct {
 	conn     ProtoConnection
 	client   *Client
 	reqChan  chan *HseMsg.Request
-	msgChan  chan Message
+	evtChan  chan Event
 	doneChan chan bool
 }
 
@@ -22,8 +22,8 @@ func (clConn ClientConnection) process() {
 			if err != nil {
 				clConn.doneChan <- true
 			}
-		case msg := <-clConn.msgChan:
-			err := clConn.handleNewMessage(msg)
+		case evt := <-clConn.evtChan:
+			err := clConn.handleEvent(evt)
 			if err != nil {
 				clConn.doneChan <- true
 			}
@@ -31,12 +31,10 @@ func (clConn ClientConnection) process() {
 	}
 }
 
-func (clConn ClientConnection) handleNewMessage(msg Message) error {
-	if clConn.client.CanReadMessage(msg) {
+func (clConn ClientConnection) handleEvent(evt Event) error {
+	if evt.IsAccessibleBy(clConn.client.user) {
 		return clConn.conn.Write(
-			EventToServerMessage(
-				NewMessageEvent{msg},
-			),
+			EventToServerMessage(evt),
 		)
 	}
 	return nil
@@ -45,8 +43,8 @@ func (clConn ClientConnection) handleNewMessage(msg Message) error {
 func (clConn ClientConnection) close() {
 	close(clConn.doneChan)
 	close(clConn.reqChan)
-	msgMngr.RemoveListener(clConn.msgChan)
-	close(clConn.msgChan)
+	evtMngr.RemoveListener(clConn.evtChan)
+	close(clConn.evtChan)
 	clConn.conn.Close()
 }
 
@@ -110,11 +108,11 @@ func NewClientConnection(conn ProtoConnection) ClientConnection {
 		conn,
 		&client,
 		make(chan *HseMsg.Request),
-		make(chan Message),
+		make(chan Event),
 		make(chan bool),
 	}
 
-	msgMngr.AddListener(clConn.msgChan)
+	evtMngr.AddListener(clConn.evtChan)
 
 	go clConn.receiveRequests()
 	go clConn.process()

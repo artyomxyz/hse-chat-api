@@ -5,6 +5,7 @@ import "github.com/hse-chat/hse-chat-api/HseMsg"
 // Event represents event of any kind
 type Event interface {
 	ToProtoEvent() *HseMsg.Event
+	IsAccessibleBy(usr *User) bool
 }
 
 // EventToServerMessage converts event to serverMessage
@@ -30,4 +31,9 @@ func (evt NewMessageEvent) ToProtoEvent() *HseMsg.Event {
 			},
 		},
 	}
+}
+
+// IsAccessibleBy checks if this event accesible by certain user
+func (evt NewMessageEvent) IsAccessibleBy(usr *User) bool {
+	return evt.message.Author == usr.Username || evt.message.Receiver == usr.Username
 }
