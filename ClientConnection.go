@@ -41,6 +41,7 @@ func (clConn ClientConnection) handleEvent(evt Event) error {
 }
 
 func (clConn ClientConnection) close() {
+	clConn.client.Finish()
 	close(clConn.doneChan)
 	close(clConn.reqChan)
 	evtMngr.RemoveListener(clConn.evtChan)
