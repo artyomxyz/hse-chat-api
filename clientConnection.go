@@ -33,7 +33,11 @@ func (clConn ClientConnection) process() {
 
 func (clConn ClientConnection) handleNewMessage(msg Message) error {
 	if clConn.client.CanReadMessage(msg) {
-		return clConn.conn.Write(msg.ToServerMessage())
+		return clConn.conn.Write(
+			EventToServerMessage(
+				NewMessageEvent{msg},
+			),
+		)
 	}
 	return nil
 }

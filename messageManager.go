@@ -16,23 +16,13 @@ type Message struct {
 	Date     int64
 }
 
-// ToServerMessage converts message to ServerMessage event NewMessage
-func (msg Message) ToServerMessage() *HseMsg.ServerMessage {
-	return &HseMsg.ServerMessage{
-		Message: &HseMsg.ServerMessage_Event{
-			Event: &HseMsg.Event{
-				Event: &HseMsg.Event_NewMessage_{
-					NewMessage: &HseMsg.Event_NewMessage{
-						Message: &HseMsg.Message{
-							Author:   &msg.Author,
-							Receiver: &msg.Receiver,
-							Date:     &msg.Date,
-							Text:     &msg.Text,
-						},
-					},
-				},
-			},
-		},
+// ToProtoMessage convers struct to *HseMsg.Message
+func (msg Message) ToProtoMessage() *HseMsg.Message {
+	return &HseMsg.Message{
+		Author:   &msg.Author,
+		Receiver: &msg.Receiver,
+		Date:     &msg.Date,
+		Text:     &msg.Text,
 	}
 }
 
