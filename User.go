@@ -5,6 +5,7 @@ import "github.com/hse-chat/hse-chat-api/HseMsg"
 // User struct represents user in system
 type User struct {
 	Username string
+	Password string
 }
 
 // ToProtoMessage convers struct to *HseMsg.User

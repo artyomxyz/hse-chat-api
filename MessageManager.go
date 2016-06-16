@@ -1,16 +1,9 @@
 package main
 
-import (
-	"sync"
-
-	"gopkg.in/mgo.v2/bson"
-)
+import "gopkg.in/mgo.v2/bson"
 
 // MessageManager manages messages and listeners to new messages
-type MessageManager struct {
-	mx        sync.RWMutex
-	listeners []chan Event
-}
+type MessageManager struct{}
 
 // AddMessage add new message and emit events
 func (msgMngr *MessageManager) AddMessage(msg Message) error {

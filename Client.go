@@ -39,12 +39,14 @@ func (cl *Client) SignUp(username string, password string) (*SignUpResult, error
 		return &SignUpResult{HseMsg.Result_SignUpResult_VALIDATION_ERROR}, nil
 	}
 
-	err := db.C("users").Insert(bson.M{
-		"username": username,
-		"password": password,
-	})
+	user := User{
+		Username: username,
+		Password: password,
+	}
 
-	if merr, ok := err.(*mgo.LastError); ok && merr.Code == 11000 {
+	err := usrMngr.AddUser(user)
+
+	if _, ok := err.(*AddUserUsernameIsTakenError); ok {
 		return &SignUpResult{HseMsg.Result_SignUpResult_USERNAME_IS_TAKEN}, nil
 	}
 
@@ -64,24 +66,17 @@ func (cl *Client) SignIn(username string, password string) (*SignInResult, error
 		return nil, &clientError{"Signed in already"}
 	}
 
-	var user struct {
-		Username string
-		Password string
-	}
-	err := db.C("users").Find(bson.M{
-		"username": username,
-		"password": password,
-	}).One(&user)
-
-	if err == mgo.ErrNotFound {
-		return &SignInResult{HseMsg.Result_SignInResult_USER_NOT_FOUND}, nil
-	}
+	user, err := usrMngr.FindByUsernameAndPassword(username, password)
 
 	if err != nil {
 		return nil, err
 	}
 
-	cl.user = &User{Username: username}
+	if user == nil {
+		return &SignInResult{HseMsg.Result_SignInResult_USER_NOT_FOUND}, nil
+	}
+
+	cl.user = user
 	cl.signedIn = true
 	return &SignInResult{HseMsg.Result_SignInResult_SIGNED_IN}, nil
 }

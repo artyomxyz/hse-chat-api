@@ -8,11 +8,13 @@ import (
 
 var db *mgo.Database
 var msgMngr *MessageManager
+var usrMngr *UserManager
 var evtMngr *EventManager
 
 func main() {
 	evtMngr = NewEventManager()
 	msgMngr = NewMessageManager()
+	usrMngr = NewUserManager()
 
 	session, err := mgo.Dial("mongodb://localhost")
 	if err != nil {
