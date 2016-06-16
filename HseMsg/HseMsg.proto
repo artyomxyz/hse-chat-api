@@ -108,7 +108,7 @@ message Event {
 		required User user = 1;
 	}
 
-	oneof event {
+	oneof value {
 		NewMessage new_message = 1;
 		NewUser new_user = 2;
 		UpdateUser update_user = 3;

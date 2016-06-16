@@ -25,7 +25,7 @@ type NewMessageEvent struct {
 // ToProtoEvent converts message to protobuf event
 func (evt NewMessageEvent) ToProtoEvent() *HseMsg.Event {
 	return &HseMsg.Event{
-		Event: &HseMsg.Event_NewMessage_{
+		Value: &HseMsg.Event_NewMessage_{
 			NewMessage: &HseMsg.Event_NewMessage{
 				Message: evt.message.ToProtoMessage(),
 			},
@@ -46,7 +46,7 @@ type NewUserEvent struct {
 // ToProtoEvent converts message to protobuf event
 func (evt NewUserEvent) ToProtoEvent() *HseMsg.Event {
 	return &HseMsg.Event{
-		Event: &HseMsg.Event_NewUser_{
+		Value: &HseMsg.Event_NewUser_{
 			NewUser: &HseMsg.Event_NewUser{
 				User: evt.user.ToProtoMessage(),
 			},
@@ -67,7 +67,7 @@ type UpdateUserEvent struct {
 // ToProtoEvent converts message to protobuf event
 func (evt UpdateUserEvent) ToProtoEvent() *HseMsg.Event {
 	return &HseMsg.Event{
-		Event: &HseMsg.Event_UpdateUser_{
+		Value: &HseMsg.Event_UpdateUser_{
 			UpdateUser: &HseMsg.Event_UpdateUser{
 				User: evt.user.ToProtoMessage(),
 			},
