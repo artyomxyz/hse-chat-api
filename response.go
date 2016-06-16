@@ -90,11 +90,12 @@ func (res GetMessagesWithUserResult) ToServerMessage(id uint32) *HseMsg.ServerMe
 	messages := make([]*HseMsg.Message, len(res.messages))
 
 	for i := range res.messages {
+		msg := res.messages[i]
 		messages[i] = &HseMsg.Message{
-			Author:   &res.messages[i].author,
-			Receiver: &res.messages[i].receiver,
-			Text:     &res.messages[i].text,
-			Date:     &res.messages[i].date,
+			Author:   &msg.Author,
+			Receiver: &msg.Receiver,
+			Text:     &msg.Text,
+			Date:     &msg.Date,
 		}
 	}
 

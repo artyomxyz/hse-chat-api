@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/hse-chat/hse-chat-api/HseMsg"
 )
@@ -16,10 +18,18 @@ func (pConn *ProtoConnection) Read(msg *HseMsg.Request) error {
 		return err
 	}
 
-	return proto.Unmarshal(chunk, msg)
+	err = proto.Unmarshal(chunk, msg)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Received %s", msg)
+	return nil
 }
 
 func (pConn *ProtoConnection) Write(msg *HseMsg.ServerMessage) error {
+	log.Printf("Sending %s", msg)
+
 	chunk, err := proto.Marshal(msg)
 	if err != nil {
 		return nil
@@ -30,6 +40,7 @@ func (pConn *ProtoConnection) Write(msg *HseMsg.ServerMessage) error {
 
 // Close closes connection
 func (pConn *ProtoConnection) Close() {
+	log.Print("Closing connection")
 	pConn.conn.Close()
 }
 
@@ -49,6 +60,7 @@ func (ln *ProtoListener) Accept() (ProtoConnection, error) {
 		return ProtoConnection{ChunkedConnection{nil}}, err
 	}
 
+	log.Print("Accepted connection")
 	chConn := ProtoConnection{conn}
 
 	return chConn, nil

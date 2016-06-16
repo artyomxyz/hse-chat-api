@@ -1,31 +1,31 @@
 package main
 
-import (
-	"log"
-
-	"github.com/hse-chat/hse-chat-api/HseMsg"
-)
+import "github.com/hse-chat/hse-chat-api/HseMsg"
 
 // ClientConnection represents client connection
 type ClientConnection struct {
-	conn    ProtoConnection
-	client  *Client
-	reqChan chan *HseMsg.Request
-	msgChan chan Message
+	conn     ProtoConnection
+	client   *Client
+	reqChan  chan *HseMsg.Request
+	msgChan  chan Message
+	doneChan chan bool
 }
 
 func (clConn ClientConnection) process() {
+	defer clConn.close()
 	for {
 		select {
+		case <-clConn.doneChan:
+			return
 		case req := <-clConn.reqChan:
 			err := clConn.handleRequest(req)
 			if err != nil {
-				clConn.close()
+				clConn.doneChan <- true
 			}
 		case msg := <-clConn.msgChan:
 			err := clConn.handleNewMessage(msg)
 			if err != nil {
-				clConn.close()
+				clConn.doneChan <- true
 			}
 		}
 	}
@@ -33,35 +33,35 @@ func (clConn ClientConnection) process() {
 
 func (clConn ClientConnection) handleNewMessage(msg Message) error {
 	if clConn.client.CanReadMessage(msg) {
-		err := clConn.conn.Write(msg.ToServerMessage())
-		if err != nil {
-			return err
-		}
+		return clConn.conn.Write(msg.ToServerMessage())
 	}
 	return nil
 }
 
 func (clConn ClientConnection) close() {
+	close(clConn.doneChan)
+	close(clConn.reqChan)
+	msgMngr.RemoveListener(clConn.msgChan)
+	close(clConn.msgChan)
 	clConn.conn.Close()
 }
 
 func (clConn ClientConnection) receiveRequests() {
-	defer clConn.close()
-
 	for {
 		req := &HseMsg.Request{}
 		err := clConn.conn.Read(req)
 		if err != nil {
-			return
+			break
 		}
+
 		clConn.reqChan <- req
 	}
+
+	clConn.doneChan <- true
 }
 
 func (clConn ClientConnection) handleRequest(req *HseMsg.Request) error {
 	var err error
-	log.Printf("Received %s", req)
-
 	var res Result
 
 	if signUp := req.GetSignUp(); signUp != nil {
@@ -94,8 +94,6 @@ func (clConn ClientConnection) handleRequest(req *HseMsg.Request) error {
 		if err != nil {
 			return err
 		}
-
-		log.Printf("Sent %s", serverMessage)
 	}
 
 	return nil
@@ -109,6 +107,7 @@ func NewClientConnection(conn ProtoConnection) ClientConnection {
 		&client,
 		make(chan *HseMsg.Request),
 		make(chan Message),
+		make(chan bool),
 	}
 
 	msgMngr.AddListener(clConn.msgChan)

@@ -8,13 +8,15 @@ import (
 	"github.com/hse-chat/hse-chat-api/HseMsg"
 )
 
+// Message struct represents message in system
 type Message struct {
-	author   string
-	receiver string
-	text     string
-	date     int64
+	Author   string
+	Receiver string
+	Text     string
+	Date     int64
 }
 
+// ToServerMessage converts message to ServerMessage event NewMessage
 func (msg Message) ToServerMessage() *HseMsg.ServerMessage {
 	return &HseMsg.ServerMessage{
 		Message: &HseMsg.ServerMessage_Event{
@@ -22,10 +24,10 @@ func (msg Message) ToServerMessage() *HseMsg.ServerMessage {
 				Event: &HseMsg.Event_NewMessage_{
 					NewMessage: &HseMsg.Event_NewMessage{
 						Message: &HseMsg.Message{
-							Author:   &msg.author,
-							Receiver: &msg.receiver,
-							Date:     &msg.date,
-							Text:     &msg.text,
+							Author:   &msg.Author,
+							Receiver: &msg.Receiver,
+							Date:     &msg.Date,
+							Text:     &msg.Text,
 						},
 					},
 				},
@@ -34,32 +36,35 @@ func (msg Message) ToServerMessage() *HseMsg.ServerMessage {
 	}
 }
 
+// MessageManager manages messages and listeners to new messages
 type MessageManager struct {
-	mx        sync.RWMutex // TODO: change to rwmutex
+	mx        sync.RWMutex
 	listeners []chan Message
 }
 
-func (me *MessageManager) AddMessage(msg Message) error {
+// AddMessage add new message and emit events
+func (msgMngr *MessageManager) AddMessage(msg Message) error {
 	err := db.C("messages").Insert(bson.M{
-		"author":   msg.author,
-		"text":     msg.text,
-		"receiver": msg.receiver,
-		"date":     msg.date,
+		"author":   msg.Author,
+		"text":     msg.Text,
+		"receiver": msg.Receiver,
+		"date":     msg.Date,
 	})
 
 	if err != nil {
 		return err
 	}
 
-	go me.Emit(msg)
+	go msgMngr.emit(msg)
 
 	return nil
 }
 
-func (me *MessageManager) GetMessagesBetweenTwoUsers(user1 string, user2 string) ([]Message, error) {
+// GetMessagesBetweenTwoUsers returns messages between user1 and user2
+func (msgMngr *MessageManager) GetMessagesBetweenTwoUsers(user1 string, user2 string) ([]Message, error) {
 	var messages []Message
 
-	err := db.C("messages").Find(nil).Select(bson.M{
+	err := db.C("messages").Find(bson.M{
 		"$or": []interface{}{
 			bson.M{
 				"author":   user1,
@@ -70,11 +75,6 @@ func (me *MessageManager) GetMessagesBetweenTwoUsers(user1 string, user2 string)
 				"receiver": user1,
 			},
 		},
-	}).Select(bson.M{
-		"author":   1,
-		"receiver": 1,
-		"text":     1,
-		"date":     1,
 	}).All(&messages)
 
 	if err != nil {
@@ -84,24 +84,34 @@ func (me *MessageManager) GetMessagesBetweenTwoUsers(user1 string, user2 string)
 	return messages, nil
 }
 
-func (me *MessageManager) Emit(msg Message) {
-	me.mx.RLock()
-	for _, ln := range me.listeners {
+func (msgMngr *MessageManager) emit(msg Message) {
+	msgMngr.mx.RLock()
+	for _, ln := range msgMngr.listeners {
 		ln <- msg
 	}
-	me.mx.RUnlock()
+	msgMngr.mx.RUnlock()
 }
 
-func (me *MessageManager) AddListener(ln chan Message) {
-	me.mx.Lock()
-	me.listeners = append(me.listeners, ln)
-	me.mx.Unlock()
+// AddListener add channel as a listener to message event
+func (msgMngr *MessageManager) AddListener(ln chan Message) {
+	msgMngr.mx.Lock()
+	msgMngr.listeners = append(msgMngr.listeners, ln)
+	msgMngr.mx.Unlock()
 }
 
-func (me *MessageManager) RemoveListener(chan Message) {
-
+// RemoveListener removes channel from listeners
+func (msgMngr *MessageManager) RemoveListener(rln chan Message) {
+	msgMngr.mx.Lock()
+	for i, ln := range msgMngr.listeners {
+		if ln == rln {
+			msgMngr.listeners = append(msgMngr.listeners[:i], msgMngr.listeners[i+1:]...)
+			break
+		}
+	}
+	msgMngr.mx.Unlock()
 }
 
+// NewMessageManager creates new message managers
 func NewMessageManager() *MessageManager {
 	return &MessageManager{}
 }

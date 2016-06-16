@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/hse-chat/hse-chat-api/HseMsg"
@@ -50,6 +51,9 @@ func (cl *Client) SignUp(username string, password string) (*SignUpResult, error
 	if err != nil {
 		return nil, err
 	}
+
+	cl.username = username
+	cl.signedIn = true
 
 	return &SignUpResult{HseMsg.Result_SignUpResult_SIGNED_UP}, nil
 }
@@ -110,7 +114,7 @@ func (cl *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, 
 	}
 
 	messages, err := msgMngr.GetMessagesBetweenTwoUsers(cl.username, peer)
-
+	log.Print(messages)
 	if err != nil {
 		return nil, err
 	}
@@ -146,10 +150,10 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 	date := time.Now().Unix()
 
 	err = msgMngr.AddMessage(Message{
-		author:   cl.username,
-		text:     text,
-		receiver: receiver,
-		date:     date,
+		Author:   cl.username,
+		Text:     text,
+		Receiver: receiver,
+		Date:     date,
 	})
 
 	if err != nil {
@@ -161,5 +165,5 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 
 // CanReadMessage return if client can read this message
 func (cl *Client) CanReadMessage(msg Message) bool {
-	return cl.signedIn && (cl.username == msg.author || cl.username == msg.receiver)
+	return cl.signedIn && (cl.username == msg.Author || cl.username == msg.Receiver)
 }
