@@ -58,3 +58,24 @@ func (evt NewUserEvent) ToProtoEvent() *HseMsg.Event {
 func (evt NewUserEvent) IsAccessibleBy(usr *User) bool {
 	return true
 }
+
+// UpdateUserEvent represents new message event
+type UpdateUserEvent struct {
+	user User
+}
+
+// ToProtoEvent converts message to protobuf event
+func (evt UpdateUserEvent) ToProtoEvent() *HseMsg.Event {
+	return &HseMsg.Event{
+		Event: &HseMsg.Event_UpdateUser_{
+			UpdateUser: &HseMsg.Event_UpdateUser{
+				User: evt.user.ToProtoMessage(),
+			},
+		},
+	}
+}
+
+// IsAccessibleBy checks if this event accesible by certain user
+func (evt UpdateUserEvent) IsAccessibleBy(usr *User) bool {
+	return true
+}

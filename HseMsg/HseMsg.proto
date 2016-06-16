@@ -11,6 +11,7 @@ message Message {
 
 message User {
 	required string username = 1;
+	optional bool online = 2;
 }
 
 message Request {
@@ -103,9 +104,14 @@ message Event {
 		required User user = 1;
 	}
 
+	message UpdateUser {
+		required User user = 1;
+	}
+
 	oneof event {
 		NewMessage new_message = 1;
 		NewUser new_user = 2;
+		UpdateUser update_user = 3;
 	}
 }
 

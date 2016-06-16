@@ -1,12 +1,56 @@
 package main
 
 import (
+	"sync"
+
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // UserManager manages messages and listeners to new messages
-type UserManager struct{}
+type UserManager struct {
+	usersSessionsCount map[string]int
+	mx                 sync.RWMutex
+}
+
+// IncUserSessionsCount inc number of current session of user on server
+func (usrMngr *UserManager) IncUserSessionsCount(username string) {
+	usrMngr.mx.Lock()
+
+	sessionsCount, ok := usrMngr.usersSessionsCount[username]
+
+	if !ok {
+		sessionsCount = 0
+	}
+
+	usrMngr.usersSessionsCount[username] = sessionsCount + 1
+
+	usrMngr.mx.Unlock()
+}
+
+// DecUserSessionsCount dec number of current session of user on server
+func (usrMngr *UserManager) DecUserSessionsCount(username string) {
+	usrMngr.mx.Lock()
+
+	sessionsCount, ok := usrMngr.usersSessionsCount[username]
+
+	if !ok || sessionsCount < 1 {
+		sessionsCount = 1
+	}
+
+	usrMngr.usersSessionsCount[username] = sessionsCount - 1
+
+	usrMngr.mx.Unlock()
+}
+
+// IsUserOnline return is user online
+func (usrMngr *UserManager) IsUserOnline(username string) bool {
+	usrMngr.mx.RLock()
+	sessionsCount, ok := usrMngr.usersSessionsCount[username]
+	usrMngr.mx.RUnlock()
+
+	return !ok || sessionsCount == 0
+}
 
 // AddUserUsernameIsTakenError occurs when username is taken
 type AddUserUsernameIsTakenError struct{}
@@ -62,6 +106,10 @@ func (usrMngr *UserManager) GetUsers() ([]User, error) {
 	err := db.C("users").Find(nil).Select(bson.M{
 		"username": 1,
 	}).All(&users)
+
+	for i := range users {
+		users[i].Online = usrMngr.IsUserOnline(users[i].Username)
+	}
 
 	return users, err
 }
