@@ -68,7 +68,7 @@ func (usrMngr *UserManager) IsUserOnline(username string) bool {
 	sessionsCount, ok := usrMngr.usersSessionsCount[username]
 	usrMngr.mx.RUnlock()
 
-	return !ok || sessionsCount == 0
+	return ok && sessionsCount != 0
 }
 
 // AddUserUsernameIsTakenError occurs when username is taken
