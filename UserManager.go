@@ -153,5 +153,5 @@ func (usrMngr *UserManager) Exists(username string) (bool, error) {
 
 // NewUserManager creates new message managers
 func NewUserManager() *UserManager {
-	return &UserManager{}
+	return &UserManager{usersSessionsCount: make(map[string]int)}
 }
