@@ -9,8 +9,8 @@ type User struct {
 	Online   bool
 }
 
-// ToProtoMessage convers struct to *HseMsg.User
-func (usr User) ToProtoMessage() *HseMsg.User {
+// ToProtoUser convers struct to *HseMsg.User
+func (usr User) ToProtoUser() *HseMsg.User {
 	return &HseMsg.User{
 		Username: &usr.Username,
 		Online:   &usr.Online,

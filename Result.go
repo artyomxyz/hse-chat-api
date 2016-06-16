@@ -59,9 +59,7 @@ func (res GetUsersResult) ToServerMessage(id uint32) *HseMsg.ServerMessage {
 	users := make([]*HseMsg.User, len(res.users))
 
 	for i := range res.users {
-		users[i] = &HseMsg.User{
-			Username: &res.users[i].Username,
-		}
+		users[i] = res.users[i].ToProtoUser()
 	}
 
 	return &HseMsg.ServerMessage{

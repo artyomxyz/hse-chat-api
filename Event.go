@@ -48,7 +48,7 @@ func (evt NewUserEvent) ToProtoEvent() *HseMsg.Event {
 	return &HseMsg.Event{
 		Value: &HseMsg.Event_NewUser_{
 			NewUser: &HseMsg.Event_NewUser{
-				User: evt.user.ToProtoMessage(),
+				User: evt.user.ToProtoUser(),
 			},
 		},
 	}
@@ -69,7 +69,7 @@ func (evt UpdateUserEvent) ToProtoEvent() *HseMsg.Event {
 	return &HseMsg.Event{
 		Value: &HseMsg.Event_UpdateUser_{
 			UpdateUser: &HseMsg.Event_UpdateUser{
-				User: evt.user.ToProtoMessage(),
+				User: evt.user.ToProtoUser(),
 			},
 		},
 	}
