@@ -46,6 +46,6 @@ func NewEventManager() *EventManager {
 	eventManager := &EventManager{
 		InputChannel: make(chan Event, 100),
 	}
-	eventManager.Listen()
+	go eventManager.Listen()
 	return eventManager
 }

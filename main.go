@@ -1,55 +1,16 @@
 package main
 
-import (
-	"log"
-
-	"gopkg.in/mgo.v2"
-)
-
-var db *mgo.Database
-var msgMngr *MessageManager
-var usrMngr *UserManager
-var evtMngr *EventManager
+import "log"
 
 func main() {
-	evtMngr = NewEventManager()
-	msgMngr = NewMessageManager()
-	usrMngr = NewUserManager()
+	api := &API{}
 
-	session, err := mgo.Dial("mongodb://localhost")
+	err := api.Initialize()
 	if err != nil {
 		panic(err)
 	}
 
-	log.Print("Connected to DB")
+	log.Print("Server listening port :8080")
 
-	db = session.DB("chat")
-
-	err = db.C("users").EnsureIndex(mgo.Index{
-		Key:      []string{"username"},
-		Unique:   true,
-		DropDups: true,
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	log.Print("Ensured username index in db")
-
-	listener, err := ProtoListen("tcp", ":8080")
-
-	if err != nil {
-		panic(err)
-	}
-
-	log.Print("Listening port 8080")
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			conn.Close()
-		}
-		NewClientConnection(conn)
-	}
+	api.Loop()
 }

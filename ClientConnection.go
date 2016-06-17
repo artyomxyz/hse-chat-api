@@ -4,87 +4,88 @@ import "github.com/hse-chat/hse-chat-api/HseMsg"
 
 // ClientConnection represents client connection
 type ClientConnection struct {
-	conn     ProtoConnection
-	client   *Client
-	reqChan  chan *HseMsg.Request
-	evtChan  chan Event
-	doneChan chan bool
+	conn            ProtoConnection
+	client          *Client
+	requestsChannel chan *HseMsg.Request
+	eventChannel    chan Event
+	doneChan        chan bool
+	api             *API
 }
 
-func (clConn ClientConnection) process() {
-	defer clConn.close()
+func (clientConnection ClientConnection) process() {
+	defer clientConnection.close()
 	for {
 		select {
-		case <-clConn.doneChan:
+		case <-clientConnection.doneChan:
 			return
-		case req := <-clConn.reqChan:
-			err := clConn.handleRequest(req)
+		case req := <-clientConnection.requestsChannel:
+			err := clientConnection.handleRequest(req)
 			if err != nil {
-				clConn.doneChan <- true
+				clientConnection.doneChan <- true
 			}
-		case evt := <-clConn.evtChan:
-			err := clConn.handleEvent(evt)
+		case evt := <-clientConnection.eventChannel:
+			err := clientConnection.handleEvent(evt)
 			if err != nil {
-				clConn.doneChan <- true
+				clientConnection.doneChan <- true
 			}
 		}
 	}
 }
 
-func (clConn ClientConnection) handleEvent(evt Event) error {
-	if evt.IsAccessibleBy(clConn.client.user) {
-		return clConn.conn.Write(
+func (clientConnection ClientConnection) handleEvent(evt Event) error {
+	if evt.IsAccessibleBy(clientConnection.client.user) {
+		return clientConnection.conn.Write(
 			EventToServerMessage(evt),
 		)
 	}
 	return nil
 }
 
-func (clConn ClientConnection) close() {
-	clConn.client.Finish()
-	close(clConn.doneChan)
-	close(clConn.reqChan)
-	evtMngr.RemoveListener(clConn.evtChan)
-	close(clConn.evtChan)
-	clConn.conn.Close()
+func (clientConnection ClientConnection) close() {
+	clientConnection.client.Finish()
+	close(clientConnection.doneChan)
+	close(clientConnection.requestsChannel)
+	clientConnection.api.eventManager.RemoveListener(clientConnection.eventChannel)
+	close(clientConnection.eventChannel)
+	clientConnection.conn.Close()
 }
 
-func (clConn ClientConnection) receiveRequests() {
+func (clientConnection ClientConnection) receiveRequests() {
 	for {
 		req := &HseMsg.Request{}
-		err := clConn.conn.Read(req)
+		err := clientConnection.conn.Read(req)
 		if err != nil {
 			break
 		}
 
-		clConn.reqChan <- req
+		clientConnection.requestsChannel <- req
 	}
 
-	clConn.doneChan <- true
+	clientConnection.doneChan <- true
 }
 
-func (clConn ClientConnection) handleRequest(req *HseMsg.Request) error {
+func (clientConnection ClientConnection) handleRequest(req *HseMsg.Request) error {
 	var err error
 	var res Result
 
 	if signUp := req.GetSignUp(); signUp != nil {
-		res, err = clConn.client.SignUp(signUp.GetUsername(), signUp.GetPassword())
+		res, err = clientConnection.client.SignUp(signUp.GetUsername(), signUp.GetPassword())
 	}
 
 	if signIn := req.GetSignIn(); signIn != nil {
-		res, err = clConn.client.SignIn(signIn.GetUsername(), signIn.GetPassword())
+		res, err = clientConnection.client.SignIn(signIn.GetUsername(), signIn.GetPassword())
 	}
 
 	if getUsers := req.GetGetUsers(); getUsers != nil {
-		res, err = clConn.client.GetUsers()
+		res, err = clientConnection.client.GetUsers()
 	}
 
 	if getMessagesWithUser := req.GetGetMessagesWithUser(); getMessagesWithUser != nil {
-		res, err = clConn.client.GetMessagesWithUser(getMessagesWithUser.GetWith())
+		res, err = clientConnection.client.GetMessagesWithUser(getMessagesWithUser.GetWith())
 	}
 
 	if sendMessageToUser := req.GetSendMessageToUser(); sendMessageToUser != nil {
-		res, err = clConn.client.SendMessageToUser(sendMessageToUser.GetReceiver(), sendMessageToUser.GetText())
+		res, err = clientConnection.client.SendMessageToUser(sendMessageToUser.GetReceiver(), sendMessageToUser.GetText())
 	}
 
 	if err != nil {
@@ -93,7 +94,7 @@ func (clConn ClientConnection) handleRequest(req *HseMsg.Request) error {
 
 	if res != nil {
 		serverMessage := res.ToServerMessage(req.GetId())
-		err = clConn.conn.Write(serverMessage)
+		err = clientConnection.conn.Write(serverMessage)
 		if err != nil {
 			return err
 		}
@@ -103,20 +104,21 @@ func (clConn ClientConnection) handleRequest(req *HseMsg.Request) error {
 }
 
 // NewClientConnection creates new client connection and start listening on it
-func NewClientConnection(conn ProtoConnection) ClientConnection {
-	client := NewClient()
-	clConn := ClientConnection{
+func NewClientConnection(conn ProtoConnection, api *API) ClientConnection {
+	client := NewClient(api.userManager, api.messageManager)
+	clientConnection := ClientConnection{
 		conn,
 		&client,
 		make(chan *HseMsg.Request),
 		make(chan Event),
 		make(chan bool),
+		api,
 	}
 
-	evtMngr.AddListener(clConn.evtChan)
+	api.eventManager.AddListener(clientConnection.eventChannel)
 
-	go clConn.receiveRequests()
-	go clConn.process()
+	go clientConnection.receiveRequests()
+	go clientConnection.process()
 
-	return clConn
+	return clientConnection
 }

@@ -11,22 +11,24 @@ import (
 type UserManager struct {
 	usersSessionsCount map[string]int
 	mx                 sync.RWMutex
+	eventManager       chan Event
+	db                 *mgo.Database
 }
 
 // IncUserSessionsCount inc number of current session of user on server
-func (usrMngr *UserManager) IncUserSessionsCount(username string) {
-	usrMngr.mx.Lock()
+func (userManager *UserManager) IncUserSessionsCount(username string) {
+	userManager.mx.Lock()
 
-	sessionsCount, ok := usrMngr.usersSessionsCount[username]
+	sessionsCount, ok := userManager.usersSessionsCount[username]
 
 	if !ok {
 		sessionsCount = 0
 	}
 
-	usrMngr.usersSessionsCount[username] = sessionsCount + 1
+	userManager.usersSessionsCount[username] = sessionsCount + 1
 
 	if sessionsCount == 0 {
-		evtMngr.InputChannel <- UpdateUserEvent{
+		userManager.eventManager <- UpdateUserEvent{
 			user: User{
 				Username: username,
 				Online:   true,
@@ -34,21 +36,21 @@ func (usrMngr *UserManager) IncUserSessionsCount(username string) {
 		}
 	}
 
-	usrMngr.mx.Unlock()
+	userManager.mx.Unlock()
 }
 
 // DecUserSessionsCount dec number of current session of user on server
-func (usrMngr *UserManager) DecUserSessionsCount(username string) {
-	usrMngr.mx.Lock()
+func (userManager *UserManager) DecUserSessionsCount(username string) {
+	userManager.mx.Lock()
 
-	sessionsCount, ok := usrMngr.usersSessionsCount[username]
+	sessionsCount, ok := userManager.usersSessionsCount[username]
 
 	if !ok || sessionsCount < 1 {
 		sessionsCount = 1
 	}
 
 	if sessionsCount == 1 {
-		evtMngr.InputChannel <- UpdateUserEvent{
+		userManager.eventManager <- UpdateUserEvent{
 			user: User{
 				Username: username,
 				Online:   true,
@@ -56,17 +58,17 @@ func (usrMngr *UserManager) DecUserSessionsCount(username string) {
 		}
 	}
 
-	usrMngr.usersSessionsCount[username] = sessionsCount - 1
-	delete(usrMngr.usersSessionsCount, username)
+	userManager.usersSessionsCount[username] = sessionsCount - 1
+	delete(userManager.usersSessionsCount, username)
 
-	usrMngr.mx.Unlock()
+	userManager.mx.Unlock()
 }
 
 // IsUserOnline return is user online
-func (usrMngr *UserManager) IsUserOnline(username string) bool {
-	usrMngr.mx.RLock()
-	sessionsCount, ok := usrMngr.usersSessionsCount[username]
-	usrMngr.mx.RUnlock()
+func (userManager *UserManager) IsUserOnline(username string) bool {
+	userManager.mx.RLock()
+	sessionsCount, ok := userManager.usersSessionsCount[username]
+	userManager.mx.RUnlock()
 
 	return ok && sessionsCount != 0
 }
@@ -79,10 +81,10 @@ func (err *AddUserUsernameIsTakenError) Error() string {
 }
 
 // AddUser add new message and emit events
-func (usrMngr *UserManager) AddUser(usr User) error {
-	err := db.C("users").Insert(bson.M{
-		"username": usr.Username,
-		"password": usr.Password,
+func (userManager *UserManager) AddUser(user User) error {
+	err := userManager.db.C("users").Insert(bson.M{
+		"username": user.Username,
+		"password": user.Password,
 	})
 
 	if merr, ok := err.(*mgo.LastError); ok && merr.Code == 11000 {
@@ -93,15 +95,15 @@ func (usrMngr *UserManager) AddUser(usr User) error {
 		return err
 	}
 
-	evtMngr.InputChannel <- NewUserEvent{usr}
+	userManager.eventManager <- NewUserEvent{user}
 
 	return nil
 }
 
 // FindByUsernameAndPassword finds user by username and password
-func (usrMngr *UserManager) FindByUsernameAndPassword(username string, password string) (*User, error) {
+func (userManager *UserManager) FindByUsernameAndPassword(username string, password string) (*User, error) {
 	var user User
-	err := db.C("users").Find(bson.M{
+	err := userManager.db.C("users").Find(bson.M{
 		"username": username,
 		"password": password,
 	}).One(&user)
@@ -118,24 +120,24 @@ func (usrMngr *UserManager) FindByUsernameAndPassword(username string, password 
 }
 
 // GetUsers return slice of users
-func (usrMngr *UserManager) GetUsers() ([]User, error) {
+func (userManager *UserManager) GetUsers() ([]User, error) {
 	var users []User
 
-	err := db.C("users").Find(nil).Select(bson.M{
+	err := userManager.db.C("users").Find(nil).Select(bson.M{
 		"username": 1,
 	}).All(&users)
 
 	for i := range users {
-		users[i].Online = usrMngr.IsUserOnline(users[i].Username)
+		users[i].Online = userManager.IsUserOnline(users[i].Username)
 	}
 
 	return users, err
 }
 
 // Exists check if user with certain username exists
-func (usrMngr *UserManager) Exists(username string) (bool, error) {
+func (userManager *UserManager) Exists(username string) (bool, error) {
 	var user User
-	err := db.C("users").Find(bson.M{
+	err := userManager.db.C("users").Find(bson.M{
 		"username": username,
 	}).One(&user)
 
@@ -151,6 +153,10 @@ func (usrMngr *UserManager) Exists(username string) (bool, error) {
 }
 
 // NewUserManager creates new message managers
-func NewUserManager() *UserManager {
-	return &UserManager{usersSessionsCount: make(map[string]int)}
+func NewUserManager(eventManager chan Event, db *mgo.Database) *UserManager {
+	return &UserManager{
+		usersSessionsCount: make(map[string]int),
+		eventManager:       eventManager,
+		db:                 db,
+	}
 }

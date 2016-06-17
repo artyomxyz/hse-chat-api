@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/hse-chat/hse-chat-api/HseMsg"
@@ -18,25 +17,27 @@ func (clErr *clientError) Error() string {
 
 // Client object, represents conected client
 type Client struct {
-	user     *User
-	signedIn bool
+	user           *User
+	signedIn       bool
+	userManager    *UserManager
+	messageManager *MessageManager
 }
 
 // NewClient Creates new unauthorized client
-func NewClient() Client {
-	return Client{nil, false}
+func NewClient(userManager *UserManager, messageManager *MessageManager) Client {
+	return Client{nil, false, userManager, messageManager}
 }
 
 // Finish Finishes user connection
-func (cl *Client) Finish() {
-	if cl.user != nil {
-		usrMngr.DecUserSessionsCount(cl.user.Username)
+func (client *Client) Finish() {
+	if client.user != nil {
+		client.userManager.DecUserSessionsCount(client.user.Username)
 	}
 }
 
 // SignUp perform sign up action
-func (cl *Client) SignUp(username string, password string) (*SignUpResult, error) {
-	if cl.signedIn {
+func (client *Client) SignUp(username string, password string) (*SignUpResult, error) {
+	if client.signedIn {
 		return nil, &clientError{"Signed in already"}
 	}
 
@@ -49,7 +50,7 @@ func (cl *Client) SignUp(username string, password string) (*SignUpResult, error
 		Password: password,
 	}
 
-	err := usrMngr.AddUser(user)
+	err := client.userManager.AddUser(user)
 
 	if _, ok := err.(*AddUserUsernameIsTakenError); ok {
 		return &SignUpResult{HseMsg.Result_SignUpResult_USERNAME_IS_TAKEN}, nil
@@ -59,21 +60,22 @@ func (cl *Client) SignUp(username string, password string) (*SignUpResult, error
 		return nil, err
 	}
 
-	cl.user = &User{Username: username}
-	cl.signedIn = true
+	client.user = &User{Username: username}
+	client.signedIn = true
 
-	go usrMngr.IncUserSessionsCount(username)
+	// TODO: investigae this go
+	go client.userManager.IncUserSessionsCount(username)
 
 	return &SignUpResult{HseMsg.Result_SignUpResult_SIGNED_UP}, nil
 }
 
 // SignIn perform sign in action
-func (cl *Client) SignIn(username string, password string) (*SignInResult, error) {
-	if cl.signedIn {
+func (client *Client) SignIn(username string, password string) (*SignInResult, error) {
+	if client.signedIn {
 		return nil, &clientError{"Signed in already"}
 	}
 
-	user, err := usrMngr.FindByUsernameAndPassword(username, password)
+	user, err := client.userManager.FindByUsernameAndPassword(username, password)
 
 	if err != nil {
 		return nil, err
@@ -83,21 +85,21 @@ func (cl *Client) SignIn(username string, password string) (*SignInResult, error
 		return &SignInResult{HseMsg.Result_SignInResult_USER_NOT_FOUND}, nil
 	}
 
-	cl.user = user
-	cl.signedIn = true
+	client.user = user
+	client.signedIn = true
 
-	go usrMngr.IncUserSessionsCount(username)
+	go client.userManager.IncUserSessionsCount(username)
 
 	return &SignInResult{HseMsg.Result_SignInResult_SIGNED_IN}, nil
 }
 
 // GetUsers get users
-func (cl *Client) GetUsers() (*GetUsersResult, error) {
-	if !cl.signedIn {
+func (client *Client) GetUsers() (*GetUsersResult, error) {
+	if !client.signedIn {
 		return nil, &clientError{"Not signed in"}
 	}
 
-	users, err := usrMngr.GetUsers()
+	users, err := client.userManager.GetUsers()
 
 	if err != nil {
 		return nil, err
@@ -107,13 +109,12 @@ func (cl *Client) GetUsers() (*GetUsersResult, error) {
 }
 
 // GetMessagesWithUser gets messages with users
-func (cl *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, error) {
-	if !cl.signedIn {
+func (client *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, error) {
+	if !client.signedIn {
 		return nil, &clientError{"Not signed in"}
 	}
 
-	messages, err := msgMngr.GetMessagesBetweenTwoUsers(cl.user.Username, peer)
-	log.Print(messages)
+	messages, err := client.messageManager.GetMessagesBetweenTwoUsers(client.user.Username, peer)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +123,8 @@ func (cl *Client) GetMessagesWithUser(peer string) (*GetMessagesWithUserResult, 
 }
 
 // SendMessageToUser send message to user
-func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageToUserResult, error) {
-	if !cl.signedIn {
+func (client *Client) SendMessageToUser(receiver string, text string) (*SendMessageToUserResult, error) {
+	if !client.signedIn {
 		return nil, &clientError{"Not signed in"}
 	}
 
@@ -131,7 +132,7 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 		return &SendMessageToUserResult{HseMsg.Result_SendMessageToUserResult_EMPTY_MESSAGE}, nil
 	}
 
-	exists, err := usrMngr.Exists(receiver)
+	exists, err := client.userManager.Exists(receiver)
 
 	if err != nil {
 		return nil, err
@@ -143,8 +144,8 @@ func (cl *Client) SendMessageToUser(receiver string, text string) (*SendMessageT
 
 	date := time.Now().Unix()
 
-	err = msgMngr.AddMessage(Message{
-		Author:   cl.user.Username,
+	err = client.messageManager.AddMessage(Message{
+		Author:   client.user.Username,
 		Text:     text,
 		Receiver: receiver,
 		Date:     date,

@@ -1,33 +1,39 @@
 package main
 
-import "gopkg.in/mgo.v2/bson"
+import (
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+)
 
 // MessageManager manages messages and listeners to new messages
-type MessageManager struct{}
+type MessageManager struct {
+	eventChannel chan Event
+	db           *mgo.Database
+}
 
 // AddMessage add new message and emit events
-func (msgMngr *MessageManager) AddMessage(msg Message) error {
-	err := db.C("messages").Insert(bson.M{
-		"author":   msg.Author,
-		"text":     msg.Text,
-		"receiver": msg.Receiver,
-		"date":     msg.Date,
+func (messageManager *MessageManager) AddMessage(message Message) error {
+	err := messageManager.db.C("messages").Insert(bson.M{
+		"author":   message.Author,
+		"text":     message.Text,
+		"receiver": message.Receiver,
+		"date":     message.Date,
 	})
 
 	if err != nil {
 		return err
 	}
 
-	evtMngr.InputChannel <- NewMessageEvent{msg}
+	messageManager.eventChannel <- NewMessageEvent{message}
 
 	return nil
 }
 
 // GetMessagesBetweenTwoUsers returns messages between user1 and user2
-func (msgMngr *MessageManager) GetMessagesBetweenTwoUsers(user1 string, user2 string) ([]Message, error) {
+func (messageManager *MessageManager) GetMessagesBetweenTwoUsers(user1 string, user2 string) ([]Message, error) {
 	var messages []Message
 
-	err := db.C("messages").Find(bson.M{
+	err := messageManager.db.C("messages").Find(bson.M{
 		"$or": []interface{}{
 			bson.M{
 				"author":   user1,
@@ -48,6 +54,6 @@ func (msgMngr *MessageManager) GetMessagesBetweenTwoUsers(user1 string, user2 st
 }
 
 // NewMessageManager creates new message managers
-func NewMessageManager() *MessageManager {
-	return &MessageManager{}
+func NewMessageManager(eventChannel chan Event, db *mgo.Database) *MessageManager {
+	return &MessageManager{eventChannel, db}
 }
