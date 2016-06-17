@@ -26,12 +26,12 @@ func (usrMngr *UserManager) IncUserSessionsCount(username string) {
 	usrMngr.usersSessionsCount[username] = sessionsCount + 1
 
 	if sessionsCount == 0 {
-		go evtMngr.Emit(UpdateUserEvent{
+		evtMngr.InputChannel <- UpdateUserEvent{
 			user: User{
 				Username: username,
 				Online:   true,
 			},
-		})
+		}
 	}
 
 	usrMngr.mx.Unlock()
@@ -48,12 +48,12 @@ func (usrMngr *UserManager) DecUserSessionsCount(username string) {
 	}
 
 	if sessionsCount == 1 {
-		go evtMngr.Emit(UpdateUserEvent{
+		evtMngr.InputChannel <- UpdateUserEvent{
 			user: User{
 				Username: username,
 				Online:   true,
 			},
-		})
+		}
 	}
 
 	usrMngr.usersSessionsCount[username] = sessionsCount - 1
@@ -93,8 +93,7 @@ func (usrMngr *UserManager) AddUser(usr User) error {
 		return err
 	}
 
-	// TODO: do it using goroutine and channels in event manager
-	go evtMngr.Emit(NewUserEvent{usr})
+	evtMngr.InputChannel <- NewUserEvent{usr}
 
 	return nil
 }

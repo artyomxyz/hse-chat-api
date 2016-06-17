@@ -18,7 +18,7 @@ func (msgMngr *MessageManager) AddMessage(msg Message) error {
 		return err
 	}
 
-	go evtMngr.Emit(NewMessageEvent{msg})
+	evtMngr.InputChannel <- NewMessageEvent{msg}
 
 	return nil
 }
